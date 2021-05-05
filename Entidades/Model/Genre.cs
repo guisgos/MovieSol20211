@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Text;
 
 namespace Entidades.Model
@@ -11,6 +12,8 @@ namespace Entidades.Model
         public string Description { get; set; }
 
         public virtual ICollection<Movie> Movies { get; set; }
+        [Timestamp]
+        public byte[] RowVersion { get; set; }
 
     }
 }

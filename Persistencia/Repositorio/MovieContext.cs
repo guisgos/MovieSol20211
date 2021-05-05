@@ -44,7 +44,7 @@ namespace Persistencia.Repositorio
         protected override void OnModelCreating(ModelBuilder builder)
         {
             builder.Entity<ApplicationUser>().ToTable("AspNetUsers").HasKey(t => t.Id);
-
+            builder.Entity<Genre>().Property(p => p.RowVersion).IsConcurrencyToken();
             base.OnModelCreating(builder);
         }
     }
