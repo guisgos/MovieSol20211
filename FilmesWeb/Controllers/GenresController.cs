@@ -89,7 +89,7 @@ namespace FilmesWeb.Controllers
         // more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("GenreId,Name,Description,RowVersion")] Genre genre)
+        public async Task<IActionResult> Edit(int id, Byte[] RowVersion, [Bind("GenreId,Name,Description")] Genre genre)
         {
             if (id != genre.GenreId)
             {
@@ -98,6 +98,20 @@ namespace FilmesWeb.Controllers
 
             if (ModelState.IsValid)
             {
+
+                var genreToUpdate = await _context.Genres.FirstOrDefaultAsync(m => m.GenreId == id);
+
+                if (genreToUpdate == null)
+                {
+                    Genre deletedgenre = new Genre();
+                    await TryUpdateModelAsync(deletedgenre);
+                    ModelState.AddModelError(string.Empty,
+                        "Unable to save changes. The genre was deleted by another user.");
+                    return View(deletedgenre);
+                }
+
+                _context.Entry(genreToUpdate).Property("RowVersion").OriginalValue = RowVersion;
+
                 try
                 {
                     _context.Update(genre);
