@@ -33,9 +33,7 @@ namespace FilmesWeb.Controllers
                 return NotFound();
             }
 
-            var genre = await _context.Genres
-                .AsNoTracking()
-                .FirstOrDefaultAsync(m => m.GenreId == id);
+            var genre = await _context.Genres.FindAsync(id);
 
             if (genre == null)
             {
@@ -60,7 +58,7 @@ namespace FilmesWeb.Controllers
         {
             if (ModelState.IsValid)
             {
-                _context.Add(genre);
+                await _context.AddAsync(genre);
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
             }
@@ -75,8 +73,7 @@ namespace FilmesWeb.Controllers
                 return NotFound();
             }
 
-            var genre = await _context.Genres.AsNoTracking()
-                .FirstOrDefaultAsync((m => m.GenreId == id));
+            var genre = await _context.Genres.FindAsync(id);
             if (genre == null)
             {
                 return NotFound();
@@ -89,8 +86,10 @@ namespace FilmesWeb.Controllers
         // more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, Byte[] RowVersion, [Bind("GenreId,Name,Description")] Genre genre)
+        public async Task<IActionResult> Edit(int id, [Bind("GenreId,Name,Description,RowVersion")] Genre genre)
         {
+            genre.ToString();
+
             if (id != genre.GenreId)
             {
                 return NotFound();
@@ -99,7 +98,7 @@ namespace FilmesWeb.Controllers
             if (ModelState.IsValid)
             {
 
-                var genreToUpdate = await _context.Genres.FirstOrDefaultAsync(m => m.GenreId == id);
+                var genreToUpdate = genre;
 
                 if (genreToUpdate == null)
                 {
@@ -110,7 +109,7 @@ namespace FilmesWeb.Controllers
                     return View(deletedgenre);
                 }
 
-                _context.Entry(genreToUpdate).Property("RowVersion").OriginalValue = RowVersion;
+                _context.Entry(genreToUpdate).Property("RowVersion").OriginalValue = genre.RowVersion;
 
                 try
                 {
