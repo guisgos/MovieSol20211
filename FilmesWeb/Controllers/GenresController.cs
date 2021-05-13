@@ -33,9 +33,7 @@ namespace FilmesWeb.Controllers
                 return NotFound();
             }
 
-            var genre = await _context.Genres
-                .AsNoTracking()
-                .FirstOrDefaultAsync(m => m.GenreId == id);
+            var genre = await _context.Genres.FindAsync(id);
 
             if (genre == null)
             {
@@ -60,7 +58,7 @@ namespace FilmesWeb.Controllers
         {
             if (ModelState.IsValid)
             {
-                _context.Add(genre);
+                await _context.AddAsync(genre);
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
             }
@@ -75,8 +73,7 @@ namespace FilmesWeb.Controllers
                 return NotFound();
             }
 
-            var genre = await _context.Genres.AsNoTracking()
-                .FirstOrDefaultAsync((m => m.GenreId == id));
+            var genre = await _context.Genres.FindAsync(id);
             if (genre == null)
             {
                 return NotFound();
@@ -89,17 +86,17 @@ namespace FilmesWeb.Controllers
         // more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, Byte[] RowVersion, [Bind("GenreId,Name,Description")] Genre genre)
+        public async Task<IActionResult> Edit(int id, [Bind("GenreId,Name,Description,RowVersion")] Genre genre)
         {
+
             if (id != genre.GenreId)
             {
                 return NotFound();
             }
-
+            var genreToUpdate = await _context.Genres.FindAsync(id);
+            _context.Entry(genreToUpdate).Property("RowVersion").OriginalValue = genre.RowVersion;
             if (ModelState.IsValid)
             {
-
-                var genreToUpdate = await _context.Genres.FirstOrDefaultAsync(m => m.GenreId == id);
 
                 if (genreToUpdate == null)
                 {
@@ -110,56 +107,102 @@ namespace FilmesWeb.Controllers
                     return View(deletedgenre);
                 }
 
-                _context.Entry(genreToUpdate).Property("RowVersion").OriginalValue = RowVersion;
+
+                //genreToUpdate.Name = genre.Name;
+                //genreToUpdate.Description = genre.Description;
 
                 try
                 {
-                    _context.Update(genre);
+                    await TryUpdateModelAsync<Genre>(genreToUpdate);
+                    //_context.Update(genreToUpdate);
                     await _context.SaveChangesAsync();
+                    return RedirectToAction(nameof(Index));
                 }
-                catch (DbUpdateConcurrencyException)
+                catch (DbUpdateConcurrencyException ex)
                 {
-                    if (!GenreExists(genre.GenreId))
+                    var exceptionEntry = ex.Entries.Single();
+                    var clientValues = (Genre)exceptionEntry.Entity;
+                    var databaseEntry = exceptionEntry.GetDatabaseValues();
+                    if (databaseEntry == null)
                     {
-                        return NotFound();
+                        ModelState.AddModelError(string.Empty,
+                            "Unable to save changes. The Genre was deleted by another user.");
                     }
                     else
                     {
-                        throw;
+                        var databaseValues = (Genre)databaseEntry.ToObject();
+
+                        if (databaseValues.Name != clientValues.Name)
+                        {
+                            ModelState.AddModelError("Name", $"Current value: {databaseValues.Name}");
+                        }
+                        if (databaseValues.Description != clientValues.Description)
+                        {
+                            ModelState.AddModelError("Description", $"Current value: {databaseValues.Description}");
+                        }
+
+                        ModelState.AddModelError(string.Empty, "The record you attempted to edit "
+                                + "was modified by another user after you got the original value. The "
+                                + "edit operation was canceled and the current values in the database "
+                                + "have been displayed. If you still want to edit this record, click "
+                                + "the Save button again. Otherwise click the Back to List hyperlink.");
+                        genreToUpdate.RowVersion = (byte[])databaseValues.RowVersion;
+                        ModelState.Remove("RowVersion");
                     }
                 }
-                return RedirectToAction(nameof(Index));
             }
-            return View(genre);
+            return View(genreToUpdate);
         }
 
         // GET: Genres/Delete/5
-        public async Task<IActionResult> Delete(int? id)
+        public async Task<IActionResult> Delete(int? id, bool? concurrencyError)
         {
             if (id == null)
             {
                 return NotFound();
             }
 
-            var genre = await _context.Genres
-                .FirstOrDefaultAsync(m => m.GenreId == id);
+            var genre = await _context.Genres.FindAsync(id);
+
             if (genre == null)
             {
+                if (concurrencyError.GetValueOrDefault())
+                {
+                    return RedirectToAction(nameof(Index));
+                }
                 return NotFound();
             }
-
+            if (concurrencyError.GetValueOrDefault())
+            {
+                ViewData["ConcurrencyErrorMessage"] = "The record you attempted to delete "
+                    + "was modified by another user after you got the original values. "
+                    + "The delete operation was canceled and the current values in the "
+                    + "database have been displayed. If you still want to delete this "
+                    + "record, click the Delete button again. Otherwise "
+                    + "click the Back to List hyperlink.";
+            }
             return View(genre);
         }
 
         // POST: Genres/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
+        public async Task<IActionResult> Delete(Genre genre)
         {
-            var genre = await _context.Genres.FindAsync(id);
-            _context.Genres.Remove(genre);
-            await _context.SaveChangesAsync();
-            return RedirectToAction(nameof(Index));
+            try
+            {
+                if (await _context.Genres.AnyAsync(m => m.GenreId == genre.GenreId))
+                {
+                    _context.Genres.Remove(genre);
+                    await _context.SaveChangesAsync();
+                }
+                return RedirectToAction(nameof(Index));
+            }
+            catch (DbUpdateConcurrencyException /* ex */)
+            {
+                //Log the error (uncomment ex variable name and write a log.)
+                return RedirectToAction(nameof(Delete), new { concurrencyError = true, id = genre.GenreId });
+            }
         }
 
         private bool GenreExists(int id)
