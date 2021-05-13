@@ -86,31 +86,31 @@ namespace FilmesWeb.Controllers
         // more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("GenreId,Name,Description,RowVersion")] Genre genre)
+        public async Task<IActionResult> Edit(int id,byte[] RowVersion, [Bind("GenreId,Name,Description")] Genre genre)
         {
-
-            if (id != genre.GenreId)
+            if (id == null)
             {
                 return NotFound();
             }
-            var genreToUpdate = await _context.Genres.FindAsync(id);
-            _context.Entry(genreToUpdate).Property("RowVersion").OriginalValue = genre.RowVersion;
-            if (ModelState.IsValid)
+
+            var genreToUpdate = await _context.Genres.FirstOrDefaultAsync(m => m.GenreId == id);
+
+            if (genreToUpdate == null)
             {
+                Genre deletedGenre = new();
+                await TryUpdateModelAsync(deletedGenre);
+                ModelState.AddModelError(string.Empty,
+                    "Unable to save changes. The Genre was deleted by another user.");
+                return View(deletedGenre);
+            }
 
-                if (genreToUpdate == null)
-                {
-                    Genre deletedgenre = new Genre();
-                    await TryUpdateModelAsync(deletedgenre);
-                    ModelState.AddModelError(string.Empty,
-                        "Unable to save changes. The genre was deleted by another user.");
-                    return View(deletedgenre);
-                }
+            _context.Entry(genreToUpdate).Property("RowVersion").OriginalValue =  genre.RowVersion;
 
-
-                //genreToUpdate.Name = genre.Name;
-                //genreToUpdate.Description = genre.Description;
-
+            if (await TryUpdateModelAsync<Genre>(
+                genreToUpdate,
+                "",
+                s => s.GenreId, s => s.Name, s => s.Description))
+            {
                 try
                 {
                     await TryUpdateModelAsync<Genre>(genreToUpdate);
