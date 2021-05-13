@@ -126,7 +126,7 @@ namespace FilmesWeb.Controllers
                     if (databaseEntry == null)
                     {
                         ModelState.AddModelError(string.Empty,
-                            "Unable to save changes. The Genre was deleted by another user.");
+                            "Unable to save changes. The department was deleted by another user.");
                     }
                     else
                     {
